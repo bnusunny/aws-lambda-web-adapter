@@ -34,9 +34,8 @@ jobs:
             rustup target add x86_64-unknown-linux-musl
             rustup target add aarch64-unknown-linux-musl
 
-      - uses: korandoru/setup-zig@v1
-        with:
-          zig-version: 0.11.0
+      - name: Install cargo lambda
+        run: pip3 install cargo-lambda
 
       - name: Configure cache
         uses: mozilla-actions/sccache-action@v0.0.3
