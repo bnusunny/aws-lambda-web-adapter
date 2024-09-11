@@ -40,7 +40,8 @@ jobs:
       - name: Configure cache
         uses: mozilla-actions/sccache-action@v0.0.3
 
-      - uses: taiki-e/install-action@nextest
+      - name: Install cargo-nextest
+        run: curl -LsSf https://get.nexte.st/latest/linux | tar zxf - -C ${CARGO_HOME:-~/.cargo}/bin
 
       - name: linting
         run: |
