@@ -49,3 +49,60 @@ jobs:
 
       - name: run unit and integration tests
         run: cargo nextest run --profile ci
+
+
+  build:
+    needs: [ test ]
+    runs-on: ubuntu-20.04
+    steps:
+      - uses: actions/checkout@v3
+
+      - uses: actions/setup-python@v4
+        with:
+          python-version: "3.10"
+
+      - uses: aws-actions/setup-sam@v2
+
+      - name: Install stable toolchain
+        run: |
+            rustup target add x86_64-unknown-linux-musl
+            rustup target add aarch64-unknown-linux-musl
+
+      - name: Install cargo lambda
+        run: pip3 install cargo-lambda
+
+      - name: Configure cache
+        uses: mozilla-actions/sccache-action@v0.0.3
+
+      - name: Install cargo-nextest
+        run: curl -LsSf https://get.nexte.st/latest/linux | tar zxf - -C ${CARGO_HOME:-~/.cargo}/bin
+
+      - name: Add cargo pkg version to env vars
+        run: |
+          echo "CARGO_PKG_VERSION=$(cargo metadata --no-deps --format-version=1 | jq -r '.packages[0].version')" >> $GITHUB_ENV
+
+      - name: Build x86_64 Layer
+        run: sam build --template ${SAM_TEMPLATE_X86_64} --parameter-overrides CargoPkgVersion=${CARGO_PKG_VERSION} -b build-x86_64
+
+      - name: Tar files
+        run: tar -cvf build-x86_64.tar build-x86_64
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: aws-sam-build-x86_64
+          path: build-x86_64.tar
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: aws-sam-build-x86_64       
+
+      - name: Build arm64 Layer
+        run: sam build --template ${SAM_TEMPLATE_ARM64} --parameter-overrides CargoPkgVersion=${CARGO_PKG_VERSION} -b build-arm64
+
+      - name: Tar files
+        run: tar -cvf build-arm64.tar build-arm64
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: aws-sam-build-arm64
+          path: build-arm64.tar
