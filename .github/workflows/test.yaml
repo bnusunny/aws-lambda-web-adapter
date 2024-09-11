@@ -1,0 +1,53 @@
+name: Pipeline
+
+on:
+  push:
+    branches:
+      - dev
+    paths-ignore:
+      - "docs"
+      - "examples"
+
+permissions:
+  id-token: write
+  contents: read
+
+env:
+  CARGO_TERM_COLOR: always
+  SAM_TEMPLATE_X86_64: template-x86_64.yaml
+  SAM_TEMPLATE_ARM64: template-arm64.yaml
+  GITHUB_RUNNER_ROLE: arn:aws:iam::048972532408:role/GitHubRunnerRole
+  RUST_BACKTRACE: full
+  SCCACHE_GHA_ENABLED: "true"
+  RUSTC_WRAPPER: "sccache"
+  CARGO_INCREMENTAL: 0
+
+jobs:
+  test:
+    runs-on: ubuntu-20.04
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@v3
+
+      - name: Install stable toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy, rustfmt
+          targets: x86_64-unknown-linux-musl,aarch64-unknown-linux-musl
+
+      - uses: korandoru/setup-zig@v1
+        with:
+          zig-version: 0.11.0
+
+      - name: Configure cache
+        uses: mozilla-actions/sccache-action@v0.0.3
+
+      - uses: taiki-e/install-action@nextest
+
+      - name: linting
+        run: |
+          cargo fmt --all -- --check
+          cargo clippy -- -Dwarnings
+
+      - name: run unit and integration tests
+        run: cargo nextest run --profile ci
