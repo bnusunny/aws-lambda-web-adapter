@@ -1,0 +1,61 @@
+name: Verify OCI Fix
+
+on:
+  push:
+    branches:
+      - fix/e2e-test-oci-sam-native-installer
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  # Reproduce the failure: pip-installed SAM CLI
+  sam-build-without-fix:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v4
+        with:
+          python-version: "3.8"
+
+      - uses: aws-actions/setup-sam@v2
+
+      - name: Docker info
+        run: docker info
+
+      - name: sam build (expected to fail)
+        working-directory: ./tests/e2e_tests/fixtures/go-httpbin
+        continue-on-error: true
+        run: |
+          # Use public ECR image to avoid cross-account auth
+          sed -i 's|COPY --from=477159140107.*|COPY --from=public.ecr.aws/awsguru/aws-lambda-adapter:0.9.1 /lambda-adapter /opt/extensions/lambda-adapter|' app/Dockerfile
+          cat app/Dockerfile
+          sam build
+
+  # Verify the fix: native-installed SAM CLI
+  sam-build-with-fix:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v4
+        with:
+          python-version: "3.8"
+
+      - uses: aws-actions/setup-sam@v2
+        with:
+          use-installer: true
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Docker info
+        run: docker info
+
+      - name: sam build (expected to succeed)
+        working-directory: ./tests/e2e_tests/fixtures/go-httpbin
+        run: |
+          # Use public ECR image to avoid cross-account auth
+          sed -i 's|COPY --from=477159140107.*|COPY --from=public.ecr.aws/awsguru/aws-lambda-adapter:0.9.1 /lambda-adapter /opt/extensions/lambda-adapter|' app/Dockerfile
+          cat app/Dockerfile
+          sam build
