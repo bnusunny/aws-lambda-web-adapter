@@ -366,6 +366,9 @@ jobs:
           python-version: "3.8"
 
       - uses: aws-actions/setup-sam@v2
+        with:
+          use-installer: true
+          token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Assume the github runner role
         uses: aws-actions/configure-aws-credentials@v4
